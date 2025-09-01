@@ -68,12 +68,8 @@ export async function getBusinessProfilesProducts(req: Request, res: Response) {
   const { phone } = req.query as unknown as any;
 
   try {
-    const results: any = [];
-
     const result = await req.client.getBusinessProfilesProducts(phone);
-    results.push(result);
-
-    returnSucess(res, session, phone, results);
+    returnSucess(res, session, phone, result);
   } catch (error) {
     returnError(req, res, session, error);
   }
