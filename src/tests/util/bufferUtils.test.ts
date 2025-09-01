@@ -41,13 +41,16 @@ describe('Utils Functions', function () {
   });
 
   describe('Async Buffer to Stream', function () {
-    const bodyToBuffer = generateRandomData(10000000);
-    const buffer = Buffer.from(bodyToBuffer, 'utf-8');
+  // Usar un tamaño menor para evitar alto consumo de RAM
+  const bodyToBuffer = generateRandomData(100000); // 100 mil caracteres (~100KB)
+  const buffer = Buffer.from(bodyToBuffer, 'utf-8');
 
     it('Should await the Buffer convertion and return a instance of readable', async function () {
       const bufferStream = await bufferUtils.AsyncBufferToStream(buffer);
-
       expect(bufferStream).toBeInstanceOf(Readable);
+      // Liberar referencias
+      // @ts-ignore
+      bufferStream.destroy();
     });
   });
 });
