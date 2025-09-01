@@ -8,63 +8,54 @@ export default {
   poweredBy: 'WPPConnect-Server',
   startAllSession: false,
   tokenStoreType: 'file',
-  maxListeners: 10,
+  maxListeners: 5, // Menos listeners para menos consumo de memoria
   customUserDataDir: '/app/userDataDir/',
 webhook: {
   url: null,                   // No hay URL de webhook configurada aún
-  autoDownload: true,          // Descarga automática de archivos multimedia
-  readMessage: false,           // Marca los mensajes como leídos al recibirlos
-  listenAcks: true,            // Escucha confirmaciones de lectura (ticks)
-  onPresenceChanged: false,    // ❌ No escucha cambios de presencia (por ejemplo: "escribiendo...")
-  onParticipantsChanged: false, // ❌ No escucha cambios en participantes de grupos
-  onReactionMessage: false,    // ❌ No escucha reacciones (emojis)
-  onPollResponse: false,        // ✅ Escucha respuestas a encuestas
-  onRevokedMessage: false,      // ✅ Escucha cuando un mensaje se borra para todos
-  onLabelUpdated: false,        // ✅ Escucha cambios de etiquetas
-  onSelfMessage: false,        // ❌ No procesa mensajes enviados por el propio bot
-  ignore: ['status@broadcast'] // Ignora mensajes del estado de WhatsApp
+  autoDownload: false,         // Solo descarga multimedia si es necesario
+  readMessage: false,
+  listenAcks: false,           // Desactiva confirmaciones para menos eventos
+  onPresenceChanged: false,
+  onParticipantsChanged: false,
+  onReactionMessage: false,
+  onPollResponse: false,
+  onRevokedMessage: false,
+  onLabelUpdated: false,
+  onSelfMessage: false,
+  ignore: ['status@broadcast']
 },
   websocket: {
-    autoDownload: false,
-    uploadS3: false,
+  autoDownload: false,
+  uploadS3: false,
   },
   chatwoot: {
     sendQrCode: false,
     sendStatus: false,
   },
   archive: {
-    enable: false,
-    waitTime: 10,
-    daysToArchive: 45,
+  enable: false,
+  waitTime: 30, // Menos procesos de archivo
+  daysToArchive: 90, // Archiva menos seguido
   },
   log: {
-    level: 'warn', // Before open a issue, change level to silly and retry a action
-    logger: ['console'],
+  level: 'error', // Solo errores para menos logs en memoria
+  logger: ['console'],
   },
   createOptions: {
     browserArgs: [
       '--disable-web-security',
       '--no-sandbox',
-      '--aggressive-cache-discard',
       '--disable-cache',
       '--disable-application-cache',
-      '--disable-offline-load-stale-cache',
       '--disk-cache-size=0',
       '--disable-background-networking',
-      '--disable-default-apps',
       '--disable-extensions',
       '--disable-sync',
       '--disable-dev-shm-usage',
       '--disable-gpu',
-      '--disable-translate',
-      '--hide-scrollbars',
-      '--metrics-recording-only',
       '--mute-audio',
       '--no-first-run',
-      '--safebrowsing-disable-auto-update',
       '--ignore-certificate-errors',
-      '--ignore-ssl-errors',
-      '--ignore-certificate-errors-spki-list',
     ],
     /**
      * Example of configuring the linkPreview generator
@@ -86,7 +77,7 @@ webhook: {
     mongodbUser: '',
     mongodbPassword: '',
     mongodbHost: '',
-    mongoIsRemote: true,
+  mongoIsRemote: false, // Solo remoto si es necesario
     mongoURLRemote: '',
     mongodbPort: 27017,
     redisHost: 'localhost',
@@ -96,11 +87,11 @@ webhook: {
     redisPrefix: 'docker',
   },
   aws_s3: {
-    region: 'sa-east-1' as any,
-    access_key_id: null,
-    secret_key: null,
-    defaultBucketName: null,
-    endpoint: null,
-    forcePathStyle: null,
+  region: '',
+  access_key_id: '',
+  secret_key: '',
+  defaultBucketName: '',
+  endpoint: '',
+  forcePathStyle: false,
   },
 } as unknown as ServerOptions;
