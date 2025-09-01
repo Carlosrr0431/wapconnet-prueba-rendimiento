@@ -130,30 +130,20 @@ export async function startAllSessions(
   const allSessions = await getAllTokens(req);
 
   if (tokenDecrypt !== req.serverOptions.secretKey) {
-    return res.status(400).json({
+    res.status(400).json({
       response: 'error',
       message: 'The token is incorrect',
     });
   }
 
-  if (allSessions.length > 20) {
-    return res.status(413).json({
-      response: 'error',
-      message: 'Too many sessions. Max 20 per request.'
-    });
-  }
+  allSessions.map(async (session: string) => {
+    const util = new CreateSessionUtil();
+    await util.opendata(req, session);
+  });
 
-  // Procesar en lotes de 5 sesiones
-  const batchSize = 5;
-  for (let i = 0; i < allSessions.length; i += batchSize) {
-    const batch = allSessions.slice(i, i + batchSize);
-    for (const session of batch) {
-      const util = new CreateSessionUtil();
-      await util.opendata(req, session);
-    }
-  }
-
-  return res.status(201).json({ status: 'success', message: 'Starting all sessions' });
+  return await res
+    .status(201)
+    .json({ status: 'success', message: 'Starting all sessions' });
 }
 
 export async function showAllSessions(

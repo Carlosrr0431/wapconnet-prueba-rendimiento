@@ -15,13 +15,6 @@
  */
 
 import { Request, Response } from 'express';
-// Extiende el tipo Request para incluir la propiedad file (usada por multer)
-interface RequestWithFile extends Request {
-  file?: {
-    path?: string;
-    [key: string]: any;
-  };
-}
 
 import { unlinkAsync } from '../util/functions';
 
@@ -98,27 +91,16 @@ export async function sendMessage(req: Request, res: Response) {
      }
    */
   const { phone, message } = req.body;
+
   const options = req.body.options || {};
 
-  if (!Array.isArray(phone) || phone.length === 0) {
-    return res.status(400).json({ error: 'No contacts provided' });
-  }
-  if (phone.length > 100) {
-    return res.status(413).json({ error: 'Too many contacts. Max 100 per request.' });
-  }
-
   try {
-    const batchSize = 10;
     const results: any = [];
-    for (let i = 0; i < phone.length; i += batchSize) {
-      const batch = phone.slice(i, i + batchSize);
-      const batchResults = await Promise.all(
-        batch.map(contato => req.client.sendText(contato, message, options))
-      );
-      results.push(...batchResults);
+    for (const contato of phone) {
+      results.push(await req.client.sendText(contato, message, options));
     }
 
-    if (results.length === 0) return res.status(400).json('Error sending message');
+    if (results.length === 0) res.status(400).json('Error sending message');
     req.io.emit('mensagem-enviada', results);
     returnSucess(res, results);
   } catch (error) {
@@ -225,41 +207,32 @@ export async function sendFile(req: Request, res: Response) {
     caption,
     quotedMessageId,
   } = req.body;
-  const options = req.body.options || {};
-  const reqWithFile = req as RequestWithFile;
 
-  if (!Array.isArray(phone) || phone.length === 0) {
-    return res.status(400).json({ error: 'No contacts provided' });
-  }
-  if (phone.length > 100) {
-    return res.status(413).json({ error: 'Too many contacts. Max 100 per request.' });
-  }
-  if (!path && !reqWithFile.file && !base64)
-    return res.status(401).send({
+  const options = req.body.options || {};
+
+  if (!path && !req.file && !base64)
+    res.status(401).send({
       message: 'Sending the file is mandatory',
     });
 
-  const pathFile = path || base64 || reqWithFile.file?.path;
+  const pathFile = path || base64 || req.file?.path;
   const msg = message || caption;
 
   try {
-    const batchSize = 10;
     const results: any = [];
-    for (let i = 0; i < phone.length; i += batchSize) {
-      const batch = phone.slice(i, i + batchSize);
-      const batchResults = await Promise.all(
-        batch.map(contact => req.client.sendFile(contact, pathFile, {
+    for (const contact of phone) {
+      results.push(
+        await req.client.sendFile(contact, pathFile, {
           filename: filename,
           caption: msg,
           quotedMsg: quotedMessageId,
           ...options,
-        }))
+        })
       );
-      results.push(...batchResults);
     }
 
-    if (results.length === 0) return res.status(400).json('Error sending message');
-    if (reqWithFile.file) await unlinkAsync(pathFile);
+    if (results.length === 0) res.status(400).json('Error sending message');
+    if (req.file) await unlinkAsync(pathFile);
     returnSucess(res, results);
   } catch (error) {
     returnError(req, res, error);
@@ -311,31 +284,21 @@ export async function sendVoice(req: Request, res: Response) {
     quotedMessageId,
   } = req.body;
 
-  if (!Array.isArray(phone) || phone.length === 0) {
-    return res.status(400).json({ error: 'No contacts provided' });
-  }
-  if (phone.length > 100) {
-    return res.status(413).json({ error: 'Too many contacts. Max 100 per request.' });
-  }
-
   try {
-    const batchSize = 10;
     const results: any = [];
-    for (let i = 0; i < phone.length; i += batchSize) {
-      const batch = phone.slice(i, i + batchSize);
-      const batchResults = await Promise.all(
-        batch.map(contato => req.client.sendPtt(
+    for (const contato of phone) {
+      results.push(
+        await req.client.sendPtt(
           contato,
           path,
           filename,
           message,
           quotedMessageId
-        ))
+        )
       );
-      results.push(...batchResults);
     }
 
-    if (results.length === 0) return res.status(400).json('Error sending message');
+    if (results.length === 0) res.status(400).json('Error sending message');
     returnSucess(res, results);
   } catch (error) {
     returnError(req, res, error);
@@ -379,31 +342,21 @@ export async function sendVoice64(req: Request, res: Response) {
    */
   const { phone, base64Ptt, quotedMessageId } = req.body;
 
-  if (!Array.isArray(phone) || phone.length === 0) {
-    return res.status(400).json({ error: 'No contacts provided' });
-  }
-  if (phone.length > 100) {
-    return res.status(413).json({ error: 'Too many contacts. Max 100 per request.' });
-  }
-
   try {
-    const batchSize = 10;
     const results: any = [];
-    for (let i = 0; i < phone.length; i += batchSize) {
-      const batch = phone.slice(i, i + batchSize);
-      const batchResults = await Promise.all(
-        batch.map(contato => req.client.sendPttFromBase64(
+    for (const contato of phone) {
+      results.push(
+        await req.client.sendPttFromBase64(
           contato,
           base64Ptt,
           'Voice Audio',
           '',
           quotedMessageId
-        ))
+        )
       );
-      results.push(...batchResults);
     }
 
-    if (results.length === 0) return res.status(400).json('Error sending message');
+    if (results.length === 0) res.status(400).json('Error sending message');
     returnSucess(res, results);
   } catch (error) {
     returnError(req, res, error);
@@ -449,25 +402,15 @@ export async function sendLinkPreview(req: Request, res: Response) {
    */
   const { phone, url, caption } = req.body;
 
-  if (!Array.isArray(phone) || phone.length === 0) {
-    return res.status(400).json({ error: 'No contacts provided' });
-  }
-  if (phone.length > 100) {
-    return res.status(413).json({ error: 'Too many contacts. Max 100 per request.' });
-  }
-
   try {
-    const batchSize = 10;
     const results: any = [];
-    for (let i = 0; i < phone.length; i += batchSize) {
-      const batch = phone.slice(i, i + batchSize);
-      const batchResults = await Promise.all(
-        batch.map(contato => req.client.sendLinkPreview(`${contato}`, url, caption))
+    for (const contato of phone) {
+      results.push(
+        await req.client.sendLinkPreview(`${contato}`, url, caption)
       );
-      results.push(...batchResults);
     }
 
-    if (results.length === 0) return res.status(400).json('Error sending message');
+    if (results.length === 0) res.status(400).json('Error sending message');
     returnSucess(res, results);
   } catch (error) {
     returnError(req, res, error);
@@ -517,30 +460,20 @@ export async function sendLocation(req: Request, res: Response) {
    */
   const { phone, lat, lng, title, address } = req.body;
 
-  if (!Array.isArray(phone) || phone.length === 0) {
-    return res.status(400).json({ error: 'No contacts provided' });
-  }
-  if (phone.length > 100) {
-    return res.status(413).json({ error: 'Too many contacts. Max 100 per request.' });
-  }
-
   try {
-    const batchSize = 10;
     const results: any = [];
-    for (let i = 0; i < phone.length; i += batchSize) {
-      const batch = phone.slice(i, i + batchSize);
-      const batchResults = await Promise.all(
-        batch.map(contato => req.client.sendLocation(contato, {
+    for (const contato of phone) {
+      results.push(
+        await req.client.sendLocation(contato, {
           lat: lat,
           lng: lng,
           address: address,
           name: title,
-        }))
+        })
       );
-      results.push(...batchResults);
     }
 
-    if (results.length === 0) return res.status(400).json('Error sending message');
+    if (results.length === 0) res.status(400).json('Error sending message');
     returnSucess(res, results);
   } catch (error) {
     returnError(req, res, error);
@@ -561,22 +494,11 @@ export async function sendButtons(req: Request, res: Response) {
    */
   const { phone, message, options } = req.body;
 
-  if (!Array.isArray(phone) || phone.length === 0) {
-    return res.status(400).json({ error: 'No contacts provided' });
-  }
-  if (phone.length > 100) {
-    return res.status(413).json({ error: 'Too many contacts. Max 100 per request.' });
-  }
-
   try {
-    const batchSize = 10;
     const results: any = [];
-    for (let i = 0; i < phone.length; i += batchSize) {
-      const batch = phone.slice(i, i + batchSize);
-      const batchResults = await Promise.all(
-        batch.map(contact => req.client.sendText(contact, message, options))
-      );
-      results.push(...batchResults);
+
+    for (const contact of phone) {
+      results.push(await req.client.sendText(contact, message, options));
     }
 
     if (results.length === 0)
@@ -650,26 +572,17 @@ export async function sendListMessage(req: Request, res: Response) {
     buttonText = 'SELECIONE UMA OPÇÃO',
   } = req.body;
 
-  if (!Array.isArray(phone) || phone.length === 0) {
-    return res.status(400).json({ error: 'No contacts provided' });
-  }
-  if (phone.length > 100) {
-    return res.status(413).json({ error: 'Too many contacts. Max 100 per request.' });
-  }
-
   try {
-    const batchSize = 10;
     const results: any = [];
-    for (let i = 0; i < phone.length; i += batchSize) {
-      const batch = phone.slice(i, i + batchSize);
-      const batchResults = await Promise.all(
-        batch.map(contact => req.client.sendListMessage(contact, {
+
+    for (const contact of phone) {
+      results.push(
+        await req.client.sendListMessage(contact, {
           buttonText: buttonText,
           description: description,
           sections: sections,
-        }))
+        })
       );
-      results.push(...batchResults);
     }
 
     if (results.length === 0)
@@ -764,28 +677,17 @@ export async function sendOrderMessage(req: Request, res: Response) {
      }
    */
   const { phone, items } = req.body;
+
   const options = req.body.options || {};
 
-  if (!Array.isArray(phone) || phone.length === 0) {
-    return res.status(400).json({ error: 'No contacts provided' });
-  }
-  if (phone.length > 100) {
-    return res.status(413).json({ error: 'Too many contacts. Max 100 per request.' });
-  }
-
   try {
-    const batchSize = 10;
     const results: any = [];
-    for (let i = 0; i < phone.length; i += batchSize) {
-      const batch = phone.slice(i, i + batchSize);
-      const batchResults = await Promise.all(
-        batch.map(contato => req.client.sendOrderMessage(contato, items, options))
-      );
-      results.push(...batchResults);
+    for (const contato of phone) {
+      results.push(await req.client.sendOrderMessage(contato, items, options));
     }
 
     if (results.length === 0)
-      return res.status(400).json('Error sending order message');
+      res.status(400).json('Error sending order message');
     req.io.emit('mensagem-enviada', results);
     returnSucess(res, results);
   } catch (error) {
@@ -836,22 +738,13 @@ export async function sendPollMessage(req: Request, res: Response) {
    */
   const { phone, name, choices, options } = req.body;
 
-  if (!Array.isArray(phone) || phone.length === 0) {
-    return res.status(400).json({ error: 'No contacts provided' });
-  }
-  if (phone.length > 100) {
-    return res.status(413).json({ error: 'Too many contacts. Max 100 per request.' });
-  }
-
   try {
-    const batchSize = 10;
     const results: any = [];
-    for (let i = 0; i < phone.length; i += batchSize) {
-      const batch = phone.slice(i, i + batchSize);
-      const batchResults = await Promise.all(
-        batch.map(contact => req.client.sendPollMessage(contact, name, choices, options))
+
+    for (const contact of phone) {
+      results.push(
+        await req.client.sendPollMessage(contact, name, choices, options)
       );
-      results.push(...batchResults);
     }
 
     if (results.length === 0)
@@ -953,25 +846,13 @@ export async function replyMessage(req: Request, res: Response) {
    */
   const { phone, message, messageId } = req.body;
 
-  if (!Array.isArray(phone) || phone.length === 0) {
-    return res.status(400).json({ error: 'No contacts provided' });
-  }
-  if (phone.length > 100) {
-    return res.status(413).json({ error: 'Too many contacts. Max 100 per request.' });
-  }
-
   try {
-    const batchSize = 10;
     const results: any = [];
-    for (let i = 0; i < phone.length; i += batchSize) {
-      const batch = phone.slice(i, i + batchSize);
-      const batchResults = await Promise.all(
-        batch.map(contato => req.client.reply(contato, message, messageId))
-      );
-      results.push(...batchResults);
+    for (const contato of phone) {
+      results.push(await req.client.reply(contato, message, messageId));
     }
 
-    if (results.length === 0) return res.status(400).json('Error sending message');
+    if (results.length === 0) res.status(400).json('Error sending message');
     req.io.emit('mensagem-enviada', { message: message, to: phone });
     returnSucess(res, results);
   } catch (error) {
@@ -1019,29 +900,17 @@ export async function sendMentioned(req: Request, res: Response) {
    */
   const { phone, message, mentioned } = req.body;
 
-  if (!Array.isArray(phone) || phone.length === 0) {
-    return res.status(400).json({ error: 'No contacts provided' });
-  }
-  if (phone.length > 100) {
-    return res.status(413).json({ error: 'Too many contacts. Max 100 per request.' });
-  }
-
   try {
-    const batchSize = 10;
-    const results: any = [];
-    for (let i = 0; i < phone.length; i += batchSize) {
-      const batch = phone.slice(i, i + batchSize);
-      const batchResults = await Promise.all(
-        batch.map(contato => req.client.sendMentioned(
-          `${contato}`,
-          message,
-          mentioned
-        ))
+    let response;
+    for (const contato of phone) {
+      response = await req.client.sendMentioned(
+        `${contato}`,
+        message,
+        mentioned
       );
-      results.push(...batchResults);
     }
 
-    res.status(201).json({ status: 'success', response: results });
+    res.status(201).json({ status: 'success', response: response });
   } catch (error) {
     req.logger.error(error);
     res.status(500).json({
@@ -1088,34 +957,22 @@ export async function sendImageAsSticker(req: Request, res: Response) {
     }
    */
   const { phone, path } = req.body;
-  const reqWithFile = req as RequestWithFile;
 
-  if (!Array.isArray(phone) || phone.length === 0) {
-    return res.status(400).json({ error: 'No contacts provided' });
-  }
-  if (phone.length > 100) {
-    return res.status(413).json({ error: 'Too many contacts. Max 100 per request.' });
-  }
-  if (!path && !reqWithFile.file)
-    return res.status(401).send({
+  if (!path && !req.file)
+    res.status(401).send({
       message: 'Sending the file is mandatory',
     });
 
-  const pathFile = path || reqWithFile.file?.path;
+  const pathFile = path || req.file?.path;
 
   try {
-    const batchSize = 10;
     const results: any = [];
-    for (let i = 0; i < phone.length; i += batchSize) {
-      const batch = phone.slice(i, i + batchSize);
-      const batchResults = await Promise.all(
-        batch.map(contato => req.client.sendImageAsSticker(contato, pathFile))
-      );
-      results.push(...batchResults);
+    for (const contato of phone) {
+      results.push(await req.client.sendImageAsSticker(contato, pathFile));
     }
 
-    if (results.length === 0) return res.status(400).json('Error sending message');
-    if (reqWithFile.file) await unlinkAsync(pathFile);
+    if (results.length === 0) res.status(400).json('Error sending message');
+    if (req.file) await unlinkAsync(pathFile);
     returnSucess(res, results);
   } catch (error) {
     returnError(req, res, error);
@@ -1158,34 +1015,22 @@ export async function sendImageAsStickerGif(req: Request, res: Response) {
     }
    */
   const { phone, path } = req.body;
-  const reqWithFile = req as RequestWithFile;
 
-  if (!Array.isArray(phone) || phone.length === 0) {
-    return res.status(400).json({ error: 'No contacts provided' });
-  }
-  if (phone.length > 100) {
-    return res.status(413).json({ error: 'Too many contacts. Max 100 per request.' });
-  }
-  if (!path && !reqWithFile.file)
-    return res.status(401).send({
+  if (!path && !req.file)
+    res.status(401).send({
       message: 'Sending the file is mandatory',
     });
 
-  const pathFile = path || reqWithFile.file?.path;
+  const pathFile = path || req.file?.path;
 
   try {
-    const batchSize = 10;
     const results: any = [];
-    for (let i = 0; i < phone.length; i += batchSize) {
-      const batch = phone.slice(i, i + batchSize);
-      const batchResults = await Promise.all(
-        batch.map(contato => req.client.sendImageAsStickerGif(contato, pathFile))
-      );
-      results.push(...batchResults);
+    for (const contato of phone) {
+      results.push(await req.client.sendImageAsStickerGif(contato, pathFile));
     }
 
-    if (results.length === 0) return res.status(400).json('Error sending message');
-    if (reqWithFile.file) await unlinkAsync(pathFile);
+    if (results.length === 0) res.status(400).json('Error sending message');
+    if (req.file) await unlinkAsync(pathFile);
     returnSucess(res, results);
   } catch (error) {
     returnError(req, res, error);
